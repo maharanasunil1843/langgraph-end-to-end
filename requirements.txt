@@ -14,5 +14,6 @@ google-search-results
 langchain_huggingface
 langchain-google-genai
 langchain-tavily
+grandalf
 
 
