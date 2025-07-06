@@ -15,5 +15,5 @@ langchain_huggingface
 langchain-google-genai
 langchain-tavily
 grandalf
-
+ipykernel
 
