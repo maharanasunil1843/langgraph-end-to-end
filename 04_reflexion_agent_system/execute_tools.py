@@ -1,6 +1,6 @@
 import json
-from typing import List, Dict, Any
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, ToolMessage
+from typing import List
+from langchain_core.messages import BaseMessage, AIMessage, ToolMessage
 from langchain_tavily import TavilySearch
 
 # Create the Tavily search tool
@@ -15,6 +15,7 @@ def execute_tools(state: List[BaseMessage]) -> List[BaseMessage]:
         return []
 
     # Process the AnswerQuestion or ReviseAnswer tool calls to extract search queres.
+    tool_messages = []
     for tool_call in last_ai_message.tool_calls:
         if tool_call["name"] in ["AnswerQuestion", "ReviseAnswer"]:
             call_id = tool_call["id"]
@@ -27,7 +28,8 @@ def execute_tools(state: List[BaseMessage]) -> List[BaseMessage]:
                 query_results[query] = result
 
             # Create a tool message with the results
-            return [ToolMessage(
+            tool_messages.append(ToolMessage(
                     content=json.dumps(query_results),
                     tool_call_id=call_id
-                )]
+                ))
+    return tool_messages

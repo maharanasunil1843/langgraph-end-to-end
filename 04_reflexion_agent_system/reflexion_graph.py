@@ -1,5 +1,6 @@
 from typing import List
-from langchain_core.messages import BaseMessage, ToolMessage, HumanMessage
+import pprint
+from langchain_core.messages import BaseMessage, ToolMessage, HumanMessage, AIMessage
 from langgraph.graph import END, MessageGraph
 
 from chains import revisor_chain, first_responder_chain
@@ -30,7 +31,17 @@ app = graph.compile()
 
 print(app.get_graph().draw_mermaid())
 
-response = app.invoke("Write about how small business can leverage AI to grow.")
+response = app.invoke([HumanMessage(content="Write about how small business can leverage AI to grow.")])
 
-# print(response)
-print(response[-1].tool_calls[0]["args"]["answer"])
+# Find the last AIMessage in the response
+last_ai_msg = None
+for msg in reversed(response):
+    if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
+        last_ai_msg = msg
+        break
+
+if last_ai_msg:
+    answer = last_ai_msg.tool_calls[0]["args"]["answer"]
+    print("Final Answer:", answer)
+else:
+    print("No AIMessage with tool_calls found in response.")

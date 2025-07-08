@@ -8,7 +8,7 @@ import datetime
 
 load_dotenv()
 llm = ChatOpenAI(
-    model="gpt-4.1-nano",
+    model="gpt-4.1",
     temperature=0.5
 )
 
@@ -46,7 +46,7 @@ revise_instructions = """
 Revise your previous answer using the new information.
 - You should use the previous critique to add important information to your answer.
 - You MUST include numerical citations in your revised answer to ensure it can be verified.
-- MUST add a "References" section to the bottom of your answer (which does not count towards th world limit). In form of:
+- You MUST add a "References" section to the bottom of your answer (which does not count towards th world limit) in form of following patterns:
     - [1] https://example.com
     - [2] https://example.com
 - You should use the previous critique to remove superfluous information from your answer and make SURE it is not more than 250 words.
