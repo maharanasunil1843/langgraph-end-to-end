@@ -16,7 +16,45 @@ tools=[search_tool]
 llm=ChatGroq(model="llama-3.1-8b-instant", temperature=0.7)
 llm_with_tools = llm.bind_tools(tools)
 
-response = llm_with_tools.invoke("What's the weather in Hyderabad?")
+def chatbot(state: AgentState):
+    return {
+        "messages": [llm_with_tools.invoke(state["messages"])]
+    }
 
-print(response)
+def tools_router(state: AgentState):
+    last_message = state["messages"][-1]
+    if (hasattr(last_message, "tool_calls") and len(last_message.tool_calls) > 0):
+        return "tool_node"
+    else:
+        return "summarize"
+    
+def summarize(state: AgentState):
+    summary = llm.invoke(state["messages"])
+    return {
+        "messages": state["messages"] + [AIMessage(content=summary.content)]
+    }
+    
+tool_node = ToolNode(tools=tools)
 
+graph = StateGraph(AgentState)
+
+graph.add_node("chatbot", chatbot)
+graph.add_node("tool_node", tool_node)
+graph.add_node("summarize", summarize)
+graph.set_entry_point("chatbot")
+graph.add_conditional_edges("chatbot", tools_router)
+graph.add_edge("tool_node", "summarize")
+graph.add_edge("summarize", END)
+
+app = graph.compile()
+
+
+while True:
+    user_input = input("User: ")
+    if user_input.lower() in ["exit", "quit", "end"]:
+        break
+    else:
+        response = app.invoke({
+            "messages": [HumanMessage(content=user_input)]
+        })
+        print(response)
