@@ -1,7 +1,7 @@
 from typing import TypedDict, Annotated
 from langgraph.graph import add_messages, StateGraph, END
 from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from dotenv import load_dotenv
 from langchain_tavily import TavilySearch
 from langgraph.prebuilt import ToolNode
@@ -19,7 +19,7 @@ llm_with_tools = llm.bind_tools(tools)
 def chatbot(state: AgentState):
     # Check if there are tool results in the conversation
     has_tool_results = any(
-        hasattr(msg, 'content') and msg.content and '>' in msg.content 
+        hasattr(msg, 'content') and msg.content and isinstance(msg.content, str) and 'search_results' in msg.content.lower()
         for msg in state["messages"] 
         if hasattr(msg, 'content')
     )
@@ -27,7 +27,7 @@ def chatbot(state: AgentState):
     if has_tool_results:
         # If we have tool results, instruct the LLM to use them
         messages = state["messages"].copy()
-        system_msg = HumanMessage(content="""You are a helpful assistant. The user has asked a question and search results have been provided. 
+        system_msg = SystemMessage(content="""You are a helpful assistant. The user has asked a question and search results have been provided. 
         Please use these search results to provide a comprehensive and accurate answer to the user's question. 
         If the search results contain relevant information, use it. If not, politely explain that you don't have the specific information.""")
         messages.insert(0, system_msg)
@@ -35,21 +35,25 @@ def chatbot(state: AgentState):
             "messages": [llm.invoke(messages)]
         }
     else:
-        # Normal tool call generation
+        # Normal tool call generation with system message
+        messages = state["messages"].copy()
+        system_msg = SystemMessage(content="""You are a helpful assistant. When the user asks questions that require current information or facts you're unsure about, 
+        use the search tool to find relevant information. Always try to provide accurate and up-to-date information.""")
+        messages.insert(0, system_msg)
         return {
-            "messages": [llm_with_tools.invoke(state["messages"])]
+            "messages": [llm_with_tools.invoke(messages)]
         }
 
 def tools_router(state: AgentState):
     last_message = state["messages"][-1]
-    if (hasattr(last_message, "tool_calls") and len(last_message.tool_calls) > 0):
+    if (hasattr(last_message, "tool_calls") and last_message.tool_calls and len(last_message.tool_calls) > 0):
         return "tool_node"
     else:
         return "summarize"
 
 def should_continue_after_tools(state: AgentState):
     last_message = state["messages"][-1]
-    if (hasattr(last_message, "tool_calls") and len(last_message.tool_calls) > 0):
+    if (hasattr(last_message, "tool_calls") and last_message.tool_calls and len(last_message.tool_calls) > 0):
         return "chatbot"  # More tools needed
     else:
         return "summarize"  # No more tools, go to summarize
@@ -59,7 +63,7 @@ def summarize(state: AgentState):
     messages = state["messages"].copy()
     
     # Add a system message to instruct the LLM to use the search results
-    system_message = HumanMessage(content="""You are a helpful assistant. Use the search results provided in the conversation to answer the user's question. 
+    system_message = SystemMessage(content="""You are a helpful assistant. Use the search results provided in the conversation to answer the user's question. 
     If search results are available, use them to provide a comprehensive and accurate answer. 
     If no search results are available, politely explain that you don't have the information.""")
     
@@ -68,7 +72,7 @@ def summarize(state: AgentState):
     
     summary = llm.invoke(messages)
     return {
-        "messages": state["messages"] + [AIMessage(content=summary.content)]
+        "messages": [summary]
     }
     
 tool_node = ToolNode(tools=tools)
