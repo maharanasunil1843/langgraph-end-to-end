@@ -15,5 +15,6 @@ langchain_huggingface
 langchain-google-genai
 langchain-tavily
 langchain-groq
+langgraph-checkpoint-sqlite
 grandalf
 ipykernel
